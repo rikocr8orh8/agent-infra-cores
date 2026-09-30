@@ -1,6 +1,6 @@
 # Agent Infrastructure Cores
 
-Ten small, standard-library Python 3.11+ building blocks for agent and service infrastructure. MIT-licensed. **49 tests across ten kits**, each kit runnable and testable on its own with no package install.
+Ten small, standard-library Python 3.11+ building blocks for agent and service infrastructure. MIT-licensed. **57 tests across ten kits**, each kit runnable and testable on its own with no package install.
 
 Run every kit's tests:
 
@@ -38,17 +38,17 @@ Tests: 6 (`cd durable-outbox && python3 -m unittest discover -p 'test_*.py' -v`)
 
 Issue one-use capabilities bound to an agent, tool, resource and expiry.
 
-**Stated limits:** The host application authenticates the subject and decides when to issue a capability. Signing keys remain trusted. The capability binds a resource, not arbitrary additional payload fields. Consumption occurs before the handler; a crash may consume it without an effect. This is not a sandbox or MCP transport.
+**Stated limits:** The host application authenticates the subject and decides when to issue a capability. Signing keys remain trusted. The capability binds a resource, not arbitrary additional payload fields. Consumption occurs before the handler; a crash may consume it without an effect. Each of subject, tool and resource is limited to 200 characters and the whole capability to 4096, so use short ASCII identifiers. This is not a sandbox or MCP transport.
 
-Tests: 5 (`cd toolscope && python3 -m unittest discover -p 'test_*.py' -v`).
+Tests: 6 (`cd toolscope && python3 -m unittest discover -p 'test_*.py' -v`).
 
 ### Readonly SQL (`readonly-sql/`)
 
 Expose named, parameterized queries with read-only enforcement and resource limits.
 
-**Stated limits:** SQLite only; no Oracle, SAP or PostgreSQL connector is included. Query authors must enforce tenant predicates correctly: presence of a parameter alone does not prove row isolation. Runtime callers must authenticate access to the named query and tenant. OS-level CPU and memory isolation are not supplied.
+**Stated limits:** SQLite only; no Oracle, SAP or PostgreSQL connector is included. Query authors must enforce tenant predicates correctly: presence of a parameter alone does not prove row isolation. The gateway only rejects a registered query that does not reference the exact parameter :tenant_id outside comments, quoted text and quoted identifiers, which catches mistakes and is not proof of isolation. Runtime callers must authenticate access to the named query and tenant. OS-level CPU and memory isolation are not supplied.
 
-Tests: 4 (`cd readonly-sql && python3 -m unittest discover -p 'test_*.py' -v`).
+Tests: 8 (`cd readonly-sql && python3 -m unittest discover -p 'test_*.py' -v`).
 
 ### CSV Quarantine (`csv-quarantine/`)
 
@@ -56,7 +56,7 @@ Inspect supplier CSVs, quarantine invalid rows and commit a clean batch transact
 
 **Stated limits:** The supplied schema is sku,name,price_minor,currency. A batch with any rejected row is not imported. Formula checks are conservative heuristics, not a general spreadsheet sanitizer. Schema mapping, tax logic, exchange rates and database authentication are not included.
 
-Tests: 4 (`cd csv-quarantine && python3 -m unittest discover -p 'test_*.py' -v`).
+Tests: 5 (`cd csv-quarantine && python3 -m unittest discover -p 'test_*.py' -v`).
 
 ### Contract Drift (`contract-drift/`)
 
@@ -86,9 +86,9 @@ Tests: 5 (`cd cursorsync && python3 -m unittest discover -p 'test_*.py' -v`).
 
 Reserve integer credits before work and settle measured usage afterward.
 
-**Stated limits:** Credits are application-defined units, not verified provider billing. Your application authenticates accounts, selects windows and computes conservative reservations. Work that bypasses the ledger is unbounded. There is no payment processing, invoicing or automatic expiration of ambiguous reservations. Reserving again with a key that is already cancelled or settled returns that state with duplicate=true instead of raising, so check the returned state before doing work. Settling with no measured amount cancels the whole reservation.
+**Stated limits:** Credits are application-defined units, not verified provider billing. Your application authenticates accounts, selects windows and computes conservative reservations. Work that bypasses the ledger is unbounded. There is no payment processing, invoicing or automatic expiration of ambiguous reservations. Reserving a key that is already cancelled or settled raises; reserving a key that is still held returns duplicate=true. Settling with no measured amount cancels the whole reservation.
 
-Tests: 5 (`cd budgetledger && python3 -m unittest discover -p 'test_*.py' -v`).
+Tests: 6 (`cd budgetledger && python3 -m unittest discover -p 'test_*.py' -v`).
 
 ### ArtifactSeal (`artifactseal/`)
 
@@ -96,7 +96,7 @@ Authenticate a file-tree manifest and detect added, removed or changed artifacts
 
 **Stated limits:** Shared-secret HMAC is not public-key signing or nonrepudiation. Freeze or snapshot the tree before sealing: this library does not eliminate filesystem races or bind later execution to the verified bytes. File permissions and executable modes are not included. Do not place the manifest inside the sealed root. Empty directories and hard links are not represented in the manifest, a directory the verifier cannot read is an error, and the limits are 1000 files, 16 MiB per file and 64 MiB in total.
 
-Tests: 5 (`cd artifactseal && python3 -m unittest discover -p 'test_*.py' -v`).
+Tests: 6 (`cd artifactseal && python3 -m unittest discover -p 'test_*.py' -v`).
 
 The paid starter kits (configured examples, integration guides, supporting material) are planned but not on sale, and their catalog page is not live yet; a link will be added here when it is.
 

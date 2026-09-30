@@ -10,6 +10,13 @@ FIELDS = ["sku", "name", "price_minor", "currency"]
 
 
 def inspect_csv(raw):
+    try:
+        return _inspect_csv(raw)
+    except csv.Error as exc:  # malformed quoting or a field over the csv module's size limit
+        raise ValueError("Malformed CSV: unterminated quote or oversized field") from exc
+
+
+def _inspect_csv(raw):
     if not isinstance(raw, bytes) or len(raw) > 5 * 1024 * 1024:
         raise ValueError("CSV must be bytes, at most 5 MiB")
     text = raw.decode("utf-8-sig")

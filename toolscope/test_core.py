@@ -29,6 +29,11 @@ class Tests(unittest.TestCase):
         token=self.token()
         with self.assertRaises(ValueError): self.caps.dispatch(token,'agent-a','order.read','ORD-1',{})
         self.caps.consume(token,'agent-a','order.read','ORD-1')
+    def test_issue_refuses_a_token_that_consume_could_never_accept(self):
+        wide='é'*200  # non-ASCII expands six-fold in the signed JSON: ~5000 characters
+        with self.assertRaises(ValueError): self.caps.issue(wide,wide,wide)
+        ascii_max='a'*200; token=self.caps.issue(ascii_max,ascii_max,ascii_max); self.assertLessEqual(len(token),4096)
+        self.caps.consume(token,ascii_max,ascii_max,ascii_max)
     def test_concurrent_single_use(self):
         token=self.token()
         def attempt(_):

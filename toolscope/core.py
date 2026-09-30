@@ -29,7 +29,10 @@ class Capabilities:
                    "expires": int(self.clock()) + ttl, "nonce": str(uuid.uuid4())}
         body = base64.urlsafe_b64encode(canonical(payload)).decode().rstrip("=")
         sig = hmac.new(self.secret, body.encode(), hashlib.sha256).hexdigest()
-        return body + "." + sig
+        token = body + "." + sig
+        if len(token) > 4096:  # consume() refuses longer tokens; never issue one that can never be used
+            raise ValueError("Capability would exceed 4096 characters; use shorter, ASCII identifiers")
+        return token
 
     def consume(self, token, subject, tool, resource):
         if not isinstance(token, str) or len(token) > 4096:

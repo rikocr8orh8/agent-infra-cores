@@ -20,6 +20,12 @@ class Tests(unittest.TestCase):
         self.ledger.settle('a','period-1','r1')
         with self.assertRaises(ValueError): self.ledger.settle('a','period-1','r1',50)
         self.assertEqual(self.ledger.balance('a','period-1')['available'],100)
+    def test_reserving_a_finalized_key_raises_instead_of_looking_granted(self):
+        self.ledger.reserve('a','period-1','r1',10); self.ledger.settle('a','period-1','r1',5)
+        with self.assertRaises(ValueError): self.ledger.reserve('a','period-1','r1',10)
+        self.ledger.reserve('a','period-1','r2',10); self.ledger.settle('a','period-1','r2')
+        with self.assertRaises(ValueError): self.ledger.reserve('a','period-1','r2',10)
+        self.assertEqual(self.ledger.balance('a','period-1'),{'cap':100,'spent':5,'held':0,'available':95})
     def test_overage_stays_held(self):
         self.ledger.reserve('a','period-1','r1',80)
         with self.assertRaises(ValueError): self.ledger.settle('a','period-1','r1',81)

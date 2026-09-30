@@ -6,12 +6,17 @@ import os
 from pathlib import Path
 
 
+MAX_ENTRIES = 100_000  # files plus directories; bounds memory before the per-file limits apply
+
+
 def _entries(root):
     def unreadable(error):
         raise ValueError("A directory in the tree could not be read") from error
     found = []
     for directory, names, files in os.walk(root, onerror=unreadable, followlinks=False):
         found.extend(Path(directory, name) for name in names + files)
+        if len(found) > MAX_ENTRIES:
+            raise ValueError("Tree exceeds file, count or total size limit")
     return sorted(found)
 
 

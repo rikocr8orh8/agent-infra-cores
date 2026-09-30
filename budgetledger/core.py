@@ -36,7 +36,9 @@ class Ledger:
             if old:
                 if old[0] != amount:
                     raise ValueError("Reservation key amount conflict")
-                return {"id": key, "state": old[1], "duplicate": True}
+                if old[1] != "held":
+                    raise ValueError("Reservation is already " + old[1] + "; use a new key")
+                return {"id": key, "state": "held", "duplicate": True}
             updated = db.execute("UPDATE budgets SET held=held+? WHERE account=? AND window=? AND cap-spent-held>=?", (amount, account, window, amount))
             if updated.rowcount != 1:
                 raise ValueError("Budget missing or insufficient capacity")

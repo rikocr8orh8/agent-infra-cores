@@ -1,6 +1,16 @@
 """SPDX-License-Identifier: MIT. Bounded named queries against a read-only SQLite database."""
 from pathlib import Path
+import re
 import sqlite3
+
+# Comments and quoted text can contain ":tenant_id" without binding anything; strip them before checking.
+# Unterminated comments and strings run to the end of the statement, as SQLite treats them.
+_NOT_CODE = re.compile(r"--[^\n]*|/\*.*?\*/|/\*.*|'(?:[^']|'')*'|'.*|\"(?:[^\"]|\"\")*\"|\".*|\[[^\]]*\]|`(?:[^`]|``)*`", re.S)
+
+
+def _references_tenant(sql):
+    # Not followed by a name character, ':' or '(': SQLite reads ':tenant_id::x' and ':tenant_id(x)' as other parameters.
+    return re.search(r":tenant_id(?![\w:(])", _NOT_CODE.sub(" ", sql)) is not None
 
 
 class ReadonlyGateway:
@@ -23,8 +33,8 @@ class ReadonlyGateway:
             raise ValueError("Caller parameters cannot override tenant identity")
         params["tenant_id"] = tenant_id
         sql = self.queries[name]
-        if ":tenant_id" not in sql:
-            raise ValueError("Registered query must bind tenant_id")
+        if not _references_tenant(sql):
+            raise ValueError("Registered query must reference :tenant_id outside comments and quoted text")
         db = sqlite3.connect(self.path.as_uri() + "?mode=ro", uri=True)
         try:
             db.row_factory = sqlite3.Row
@@ -46,14 +56,21 @@ class ReadonlyGateway:
                 return int(ticks >= self.max_steps)
             db.set_progress_handler(progress, 1000)
             cursor = db.execute(sql, params)
-            rows = cursor.fetchmany(self.max_rows + 1)
-            result = [dict(r) for r in rows[:self.max_rows]]
-            if any(isinstance(v, bytes) for r in result for v in r.values()):
-                raise ValueError("Binary columns are not supported")
-            if sum(len(str(v).encode()) for r in result for v in r.values()) > 1048576:
-                raise ValueError("Result exceeds 1 MiB")
-            return {"rows": result, "truncated": len(rows) > self.max_rows}
-        except sqlite3.Error as exc:
+            result, truncated, total = [], False, 0
+            for fetched in cursor:  # read row by row so the 1 MiB cap stops reading early
+                if len(result) == self.max_rows:
+                    truncated = True
+                    break
+                row = dict(fetched)
+                for value in row.values():
+                    if isinstance(value, bytes):
+                        raise ValueError("Binary columns are not supported")
+                    total += len(str(value).encode())
+                if total > 1048576:
+                    raise ValueError("Result exceeds 1 MiB")
+                result.append(row)
+            return {"rows": result, "truncated": truncated}
+        except (sqlite3.Error, OverflowError) as exc:  # OverflowError: integer parameter above 2**63-1
             raise ValueError("Query denied, invalid, or exceeded its resource budget") from exc
         finally:
             db.close()

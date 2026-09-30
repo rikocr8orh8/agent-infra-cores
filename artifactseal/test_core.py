@@ -31,6 +31,12 @@ class Tests(unittest.TestCase):
         self.addCleanup(hidden.chmod,0o755)
         with self.assertRaises(ValueError): verify(self.root,envelope,self.key)
         with self.assertRaises(ValueError): seal(self.root,self.key)
+    def test_directory_walk_is_bounded_before_the_file_limits_apply(self):
+        import core
+        for i in range(6): (self.root/f'd{i}').mkdir()
+        self.addCleanup(setattr,core,'MAX_ENTRIES',core.MAX_ENTRIES)
+        core.MAX_ENTRIES=5
+        with self.assertRaises(ValueError): seal(self.root,self.key)
     def test_symlinks_rejected(self):
         (self.root/'link').symlink_to(self.root/'report.txt')
         with self.assertRaises(ValueError): seal(self.root,self.key)

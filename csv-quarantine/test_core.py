@@ -23,6 +23,11 @@ class Tests(unittest.TestCase):
         with self.assertRaises(ValueError): inspect_csv(b'sku,sku,name,price_minor,currency\n')
         self.assertEqual(len(inspect_csv(self.raw+b'SKU-1,Other,200,USD\n')['rejected']),1)
         self.assertEqual(len(inspect_csv(HEADER+b'SKU-1,Missing\n')['rejected']),1)
+    def test_malformed_quoting_and_oversized_fields_raise_value_error(self):
+        with self.assertRaises(ValueError): inspect_csv(HEADER+b'A,"unterminated\n')
+        with self.assertRaises(ValueError): inspect_csv(HEADER+b'A,'+b'x'*200000+b',1,USD\n')
+        with self.assertRaises(ValueError): import_catalog(self.path,'supplier-a',HEADER+b'A,"x','0'*64)
+        self.assertFalse(self.path.exists())
     def test_changed_bytes_and_supplier_scope(self):
         with self.assertRaises(ValueError): import_catalog(self.path,'supplier-a',self.raw,'wrong')
         digest=inspect_csv(self.raw)['source_sha256']
